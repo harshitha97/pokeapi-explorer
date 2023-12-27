@@ -1,18 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
-  const [poke, setPoke] = useState([]);
+  const [poke, setPoke] = useState(null);
   const [curr, setCurr] = useState(1);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const appRef = useRef(null);
 
   const fetchpoke = async () => {
     setLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 500));
     if (Math.random() < 0.4) {
       console.log("Error");
-      setPoke([]); // Set to an empty array or another default value
+      setPoke(new Error("Something went wrong. Try again"));
       setLoading(false);
       return;
     }
@@ -28,24 +27,6 @@ function App() {
   useEffect(() => {
     fetchpoke();
   }, [curr]);
-
-  useEffect(() => {
-    if (appRef.current) {
-      const node = appRef.current;
-      if (loading) {
-        node.style.opacity = '0.5';
-        node.style.animation = 'loading 1.5s infinite';
-        node.style.transition = 'opacity 0.5s ease-in-out';
-      } else {
-        node.style.opacity = '1';
-        node.style.animation = 'none';
-        node.style.transition = 'none';
-      }
-      return () => {
-        node.style.opacity = '0';
-      };
-    }
-  }, [loading]);
 
   const nextPage = () => {
     setCurr(curr + 1);
@@ -63,11 +44,61 @@ function App() {
     setCount(count - 1);
   };
 
+  const errorDialogStyle = {
+    backgroundColor: '#f8d7da',
+    border: '1px solid #f5c6cb',
+    borderRadius: '5px',
+    padding: '20px',
+    margin: '10px',
+  };
+
+  const errorTitleStyle = {
+    color: '#721c24',
+  };
+
+  const errorMsgStyle = {
+    color: 'red',
+  };
+
+  const tryAgainButtonStyle = {
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '5px',
+    marginBottom: '10px',
+  };
+
+  const handleTryAgainClick = () => {
+    fetchpoke();
+  };
+
   return (
-    <div className="App" style={{ background: loading ? 'yellow' : 'green' }}>
+    <div
+      className="App"
+      style={{
+        backgroundColor: loading ? '#8b9992' : 'white',
+        opacity: loading ? 0.5 : 1.0,
+      }}
+    >
       <h1>Pokedex</h1>
       {loading ? (
         <p>Loading table...</p>
+      ) : poke instanceof Error ? (
+        <div>
+          <div style={errorDialogStyle}>
+            <div>
+              <h2 style={errorTitleStyle}>Error</h2>
+              <p style={errorMsgStyle}>{poke.message}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleTryAgainClick}
+            style={tryAgainButtonStyle}
+          >
+            Try Again
+          </button>
+        </div>
       ) : (
         <table>
           <thead>
@@ -77,10 +108,10 @@ function App() {
             </tr>
           </thead>
           <tbody>
-            {poke.map((poke) => (
-              <tr key={poke.name}>
-                <td>{poke.name}</td>
-                <td>{poke.url}</td>
+            {poke.map((pokemon) => (
+              <tr key={pokemon.name}>
+                <td>{pokemon.name}</td>
+                <td>{pokemon.url}</td>
               </tr>
             ))}
           </tbody>
