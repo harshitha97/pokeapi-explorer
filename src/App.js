@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 
 function App() {
   const [poke, setPoke] = useState(null);
   const [curr, setCurr] = useState(1);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [lastUpdateTime, setLastUpdateTime] = useState(null);
 
   const fetchpoke = async () => {
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     if (Math.random() < 0.4) {
       console.log("Error");
-      setPoke(new Error("Something went wrong. Try again"));
+      setPoke(new Error("Something went wrong. Try again."));
+      setLastUpdateTime(new Date());
       setLoading(false);
       return;
     }
@@ -21,6 +23,7 @@ function App() {
     );
     const data = await response.json();
     setPoke(data.results);
+    setLastUpdateTime(new Date());
     setLoading(false);
   };
 
@@ -48,8 +51,8 @@ function App() {
     backgroundColor: '#f8d7da',
     border: '1px solid #f5c6cb',
     borderRadius: '5px',
-    padding: '20px',
-    margin: '10px',
+    padding: '10px',
+    margin: '10px 0',
   };
 
   const errorTitleStyle = {
@@ -64,13 +67,44 @@ function App() {
     backgroundColor: '#007bff',
     color: 'white',
     border: 'none',
-    padding: '10px 20px',
+    padding: '10px 10px',
     borderRadius: '5px',
     marginBottom: '10px',
   };
 
+  const reftchButtonStyle = {
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    padding: '10px 10px',
+    borderRadius: '5px',
+    marginBottom: '10px',
+    marginTop: '10px',
+  };
+
   const handleTryAgainClick = () => {
     fetchpoke();
+  };
+
+  const handleRefetchClick = () => {
+    fetchpoke();
+    setLastUpdateTime(new Date());
+  };
+
+  const getUpdateTime = () => {
+    if (lastUpdateTime !== null) {
+      const dt = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false,
+      };
+      const formatter = new Intl.DateTimeFormat(undefined, dt);
+      return formatter.format(lastUpdateTime);
+    }
   };
 
   return (
@@ -79,8 +113,13 @@ function App() {
       style={{
         backgroundColor: loading ? '#8b9992' : 'white',
         opacity: loading ? 0.5 : 1.0,
+        animation: loading ? 'loading 1.5s infinite' : 'none',
+        transition: loading ? 'opacity 0.5s ease-in-out' : 'none',
       }}
     >
+      <GrandchildContext.Provider value={'Name for grandchild only'}>
+        <NestedChild name="Harshitha" />
+      </GrandchildContext.Provider>
       <h1>Pokedex</h1>
       {loading ? (
         <p>Loading table...</p>
@@ -127,8 +166,28 @@ function App() {
         <button onClick={increment}>increment</button>
         <button onClick={decrement}>decrement</button>
       </div>
+      <button onClick={handleRefetchClick} style={reftchButtonStyle}>
+        Refetch
+      </button>
+      <p>Current Date and Time: {getUpdateTime()}</p>
     </div>
   );
+}
+
+export const GrandchildContext = createContext(null);
+
+function NestedChild(props) {
+  return (
+    <div>
+      Hello, World {props.name}
+      <NestedGrandChild />
+    </div>
+  );
+}
+
+function NestedGrandChild() {
+  const grandchildName = useContext(GrandchildContext);
+  return <div>Hello, GrandChild {grandchildName}</div>;
 }
 
 export default App;
