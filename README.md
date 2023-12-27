@@ -1,3 +1,8 @@
+#Pokedex React/Javascript App
+
+This project was initially developed using TypeScript and has been converted to JavaScript for broader compatibility and ease of use.
+The Pokedex App is a simple React application that allows users to explore information about Pokemon.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
