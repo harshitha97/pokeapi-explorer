@@ -1,193 +1,239 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Route, Link, Routes, useParams, Outlet } from 'react-router-dom';
+// import { createContext, useContext } from 'react';
+// import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 function App() {
-  const [poke, setPoke] = useState(null);
   const [curr, setCurr] = useState(1);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdateTime, setLastUpdateTime] = useState(null);
 
-  const fetchpoke = async () => {
-    setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    if (Math.random() < 0.4) {
-      console.log("Error");
-      setPoke(new Error("Something went wrong. Try again."));
-      setLastUpdateTime(new Date());
-      setLoading(false);
-      return;
-    }
-    const offset = (curr - 1) * 10;
-    const response = await fetch(
-      `https://pokeapi.co/api/v2/pokemon?limit=10&offset=${offset}`
+  function PokemonListPage() {
+    const [selectedPokemon, setSelectedPokemon] = useState(null);
+
+    const fetchpoke = async () => {
+      const offset = (curr - 1) * 10;
+      const data = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=10&offset=${offset}`)
+        .then((response) => response.json());
+      return data.results;
+    };
+
+    const pokeQuery = useQuery(['pokemon', curr], fetchpoke, {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    });
+
+    const nextPage = () => {
+      setCurr(curr + 1);
+    };
+
+    const prevPage = () => {
+      setCurr(curr - 1);
+    };
+
+    const handleRefetchClick = () => {
+      pokeQuery.refetch();
+    };
+
+    const getUpdateTime = () => {
+      if (pokeQuery.dataUpdatedAt !== null) {
+        const dt = {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric',
+          hour12: false,
+        };
+        const formatter = new Intl.DateTimeFormat(undefined, dt);
+        return formatter.format(pokeQuery.dataUpdatedAt);
+      }
+    };
+
+    return (
+      <div className="App">
+        <h1 className='mb-4 pl-20 text-4xl italic text-start font-extrabold px-2 text-yellow-400'>Pokedex</h1>
+        {pokeQuery.isLoading && <p>Loading table...</p>}
+        {pokeQuery.isError && (
+          <div>
+            <h2>Error</h2>
+            <p>{pokeQuery.error.message}</p>
+          </div>
+        )}
+        {pokeQuery.isSuccess && (
+          <table className='pl-3 ml-3 text-sm text-center text-gray-500 dark:text-gray-400 table-fixed'>
+            <thead>
+              <tr>
+                <th scope='col' className='px-3 py-2 border border-slate-300'>Name</th>
+                <th scope='col' className='px-3 py-2 border border-slate-300'>URL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pokeQuery.data.map((poke) => (
+                <tr key={poke.name}>
+                  <td>
+                    <Link to={`/app/pokemon/${poke.name}`} onClick={() => setSelectedPokemon(poke)} className="text-blue-600 hover:text-blue-900 hover:underline hover:bg-green-100">
+                      {poke.name}
+                    </Link>
+                  </td>
+                  <td>{poke.url}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="buttons">
+          <button onClick={prevPage} className="py-2 px-5 mx-5 my-2 rounded-lg border font-medium text-gray-700 focus:outline-none bg-green-50 border-gray-200 hover:bg-green-100 hover:text-blue-500 focus:z-10 focus:ring-40 focus:ring-gray-600">Previous</button>
+          <button onClick={nextPage} className="py-2 px-9 mx-5 my-2 rounded-lg border font-medium text-gray-700 focus:outline-none bg-green-50 border-gray-200 hover:bg-green-100 hover:text-blue-500 focus:z-10 focus:ring-40 focus:ring-gray-600">Next</button>
+        </div>
+        <button onClick={handleRefetchClick} className="py-2 px-5 mx-20 my-2 rounded-lg bg-blue-500 text-white border-lime-600 border-4 ">Refetch</button>
+        <p className='px-5'>Current Date and Time: {getUpdateTime()}</p>
+      </div>
     );
-    const data = await response.json();
-    setPoke(data.results);
-    setLastUpdateTime(new Date());
-    setLoading(false);
-  };
+  }
 
-  useEffect(() => {
-    fetchpoke();
-  }, [curr]);
+  function PokemonDetailsPage() {
+    const { pokeName = 'non-valid' } = useParams();
 
-  const nextPage = () => {
-    setCurr(curr + 1);
-  };
+    const fetchPokemonDetails = async () => {
+      const pokeUrlData = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokeName}`)
+        .then((response) => response.json());
 
-  const prevPage = () => {
-    setCurr(curr - 1);
-  };
+      const abilities = pokeUrlData.abilities.map(
+        (ability) => ability.ability.name
+      );
 
-  const increment = () => {
-    setCount(count + 1);
-  };
+      const hpStat = pokeUrlData.stats.find((stat) => stat.stat.name === "hp");
+      let pokeHpValue = undefined;
+      if (hpStat) {
+        pokeHpValue = hpStat.base_stat;
+      }
 
-  const decrement = () => {
-    setCount(count - 1);
-  };
+      const pokeImage = pokeUrlData.sprites.front_shiny;
 
-  const errorDialogStyle = {
-    backgroundColor: '#f8d7da',
-    border: '1px solid #f5c6cb',
-    borderRadius: '5px',
-    padding: '10px',
-    margin: '10px 0',
-  };
-
-  const errorTitleStyle = {
-    color: '#721c24',
-  };
-
-  const errorMsgStyle = {
-    color: 'red',
-  };
-
-  const tryAgainButtonStyle = {
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    padding: '10px 10px',
-    borderRadius: '5px',
-    marginBottom: '10px',
-  };
-
-  const reftchButtonStyle = {
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    padding: '10px 10px',
-    borderRadius: '5px',
-    marginBottom: '10px',
-    marginTop: '10px',
-  };
-
-  const handleTryAgainClick = () => {
-    fetchpoke();
-  };
-
-  const handleRefetchClick = () => {
-    fetchpoke();
-    setLastUpdateTime(new Date());
-  };
-
-  const getUpdateTime = () => {
-    if (lastUpdateTime !== null) {
-      const dt = {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        hour12: false,
+      const pokemonAllDetails = {
+        name: pokeName,
+        abilities: abilities,
+        image: pokeImage,
+        hp: pokeHpValue,
       };
-      const formatter = new Intl.DateTimeFormat(undefined, dt);
-      return formatter.format(lastUpdateTime);
+
+      return pokemonAllDetails;
+    };
+
+    const queryKey = ['pokemon', pokeName];
+    const { data, isLoading, isError } = useQuery(queryKey, fetchPokemonDetails);
+
+    if (isLoading) {
+      return <div>Loading...</div>;
     }
-  };
+
+    if (isError) {
+      return <div>Error fetching data</div>;
+    }
+
+    const { name, image, hp, abilities } = data;
+
+    const containerStyle = {
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '30%',
+      backgroundColor: '#f2f2f2',
+      padding: '20px',
+      borderRadius: '10px',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    };
+
+    const nameStyle = {
+      fontSize: '24px',
+      color: '#333',
+    };
+
+    const imageContainerStyle = {
+      width: '30%',
+      backgroundColor: '#D5F5E3',
+      padding: '10px',
+      borderRadius: '10px',
+      marginBottom: '20px',
+    };
+
+    const imageStyle = {
+      maxWidth: '500px',
+      margin: '0',
+      marginLeft: 'auto',
+      marginRight: 'auto',
+    };
+
+    const abilitiesStyle = {
+      marginTop: '20px',
+    };
+
+    const headingStyle = {
+      fontSize: '18px',
+      color: '#555',
+    };
+
+    const listItemStyle = {
+      fontSize: '16px',
+      color: '#777',
+    };
+
+    return (
+      <div className="App" style={containerStyle}>
+        <h1 style={nameStyle}>Hello {name}</h1>
+        <div style={imageContainerStyle}>
+          <img style={imageStyle} src={image} alt={name} />
+        </div>
+        <div style={abilitiesStyle}>
+          <h2 style={headingStyle}>Abilities:</h2>
+          <ul>
+            {abilities.map((ability, index) => (
+              <li key={index} style={listItemStyle}>{ability}</li>
+            ))}
+          </ul>
+        </div>
+        <div style={abilitiesStyle}>
+          <h2 style={headingStyle}>HP: {hp}</h2>
+        </div>
+        <Link to="/app/">Back to Pokemon Page</Link>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="App"
-      style={{
-        backgroundColor: loading ? '#8b9992' : 'white',
-        opacity: loading ? 0.5 : 1.0,
-        animation: loading ? 'loading 1.5s infinite' : 'none',
-        transition: loading ? 'opacity 0.5s ease-in-out' : 'none',
-      }}
-    >
-      <GrandchildContext.Provider value={'Name for grandchild only'}>
-        <NestedChild name="Harshitha" />
-      </GrandchildContext.Provider>
-      <h1>Pokedex</h1>
-      {loading ? (
-        <p>Loading table...</p>
-      ) : poke instanceof Error ? (
-        <div>
-          <div style={errorDialogStyle}>
-            <div>
-              <h2 style={errorTitleStyle}>Error</h2>
-              <p style={errorMsgStyle}>{poke.message}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleTryAgainClick}
-            style={tryAgainButtonStyle}
-          >
-            Try Again
-          </button>
-        </div>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>URL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {poke.map((pokemon) => (
-              <tr key={pokemon.name}>
-                <td>{pokemon.name}</td>
-                <td>{pokemon.url}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <div className="buttons">
-        <button onClick={prevPage}>Previous</button>
-        <button onClick={nextPage}>Next</button>
-      </div>
-      <div className="button">
-        <h1>Counter increment and decrement</h1>
-        <p>Count = {count}</p>
-        <button onClick={increment}>increment</button>
-        <button onClick={decrement}>decrement</button>
-      </div>
-      <button onClick={handleRefetchClick} style={reftchButtonStyle}>
-        Refetch
-      </button>
-      <p>Current Date and Time: {getUpdateTime()}</p>
-    </div>
-  );
+    <Router>
+      <Routes>
+        <Route path="/app/" element={<NavigationBar />}>
+          <Route index element={<PokemonListPage />} />
+          <Route path="pokemon/:pokeName" element={<PokemonDetailsPage />} />
+        </Route>
+      </Routes>
+    </Router>
+  );  
 }
 
-export const GrandchildContext = createContext(null);
-
-function NestedChild(props) {
+const NavigationBar = () => {
   return (
     <div>
-      Hello, World {props.name}
-      <NestedGrandChild />
+      <nav>
+        <ul>
+          <li>
+            <Link to="/app/" className='px-5 text-lg block underline text-blue-500 hover:text-blue-900 hover:bg-green-50'>Pokedex</Link>
+          </li>
+        </ul>
+      </nav>
+
+      <Outlet />
+
+      <nav>
+        <ul>
+          <li>
+            <Link to="/app/" className='px-5 text-lg block underline text-blue-500 hover:text-blue-900 hover:bg-green-50'>Pokedex</Link>
+          </li>
+        </ul>
+      </nav>
     </div>
   );
-}
-
-function NestedGrandChild() {
-  const grandchildName = useContext(GrandchildContext);
-  return <div>Hello, GrandChild {grandchildName}</div>;
-}
+};
 
 export default App;
